@@ -6,6 +6,8 @@ let pointsURL =
 window.addEventListener("DOMContentLoaded", init);
 
 let map;
+let sidebar;
+let panelID = "my-info-panel";
 
 function init() {
   map = L.map("map").setView([22.5, 80.0], 5);
@@ -19,6 +21,26 @@ function init() {
       maxZoom: 19,
     }
   ).addTo(map);
+
+  sidebar = L.control
+    .sidebar({
+      container: "sidebar",
+      closeButton: true,
+      position: "right",
+    })
+    .addTo(map);
+
+  let panelContent = {
+    id: panelID,
+    tab: "<i class='fa fa-bars active'></i>",
+    pane: "<p id='sidebar-content'></p>",
+    title: "<h2 id='sidebar-title'>🪳 CJP Basera Map</h2>",
+  };
+  sidebar.addPanel(panelContent);
+
+  map.on("click", function () {
+    sidebar.close(panelID);
+  });
 
   Papa.parse(pointsURL, {
     download: true,
@@ -34,14 +56,16 @@ function addPoints(data) {
   for (let row = 0; row < data.length; row++) {
     let d = data[row];
 
-    let name      = d["Basera name"] || "Basera";
-    let locality  = d["Locality / Mohalla"] || "—";
-    let citystate = d["City & State"] || "—";
-    let instagram = d["Instagram handle"] || "";
-    let members   = d["Number of members so far"] || "—";
-    let lat       = parseFloat(d["lat"]);
-    let lng       = parseFloat(d["lng"]);
+    // Map exact Google Form header names
+    let name       = d["Basera name"] || "Basera";
+    let locality   = d["Locality / Mohalla"] || "—";
+    let citystate  = d["City & State"] || "—";
+    let instagram  = d["Instagram handle"] || "";
+    let members    = d["Number of members so far"] || "—";
+    let lat        = parseFloat(d["lat"]);
+    let lng        = parseFloat(d["lng"]);
 
+    // Skip rows with no coordinates
     if (!lat || !lng || isNaN(lat)) continue;
 
     let icon = L.AwesomeMarkers.icon({
@@ -54,20 +78,26 @@ function addPoints(data) {
     let marker = L.marker([lat, lng], { icon: icon });
     marker.addTo(pointGroupLayer);
 
-    let popupContent = `
-      <h3>🪳 ${name}</h3>
-      <table style="font-family:sans-serif; font-size:13px; line-height:1.8; width:100%;">
-        <tr><td><b>Locality</b></td><td>${locality}</td></tr>
-        <tr><td><b>City / State</b></td><td>${citystate}</td></tr>
-        <tr><td><b>Instagram</b></td><td>${
-          instagram
-            ? `<a href="https://instagram.com/${instagram.replace("@","")}" target="_blank">${instagram}</a>`
-            : "—"
-        }</td></tr>
-        <tr><td><b>Members</b></td><td>${members}</td></tr>
-      </table>
-    `;
+    marker.on("click", function (e) {
+      L.DomEvent.stopPropagation(e);
 
-    marker.bindPopup(popupContent, { maxWidth: 250 });
+      document.getElementById("sidebar-title").innerHTML =
+        "🪳 " + name;
+
+      document.getElementById("sidebar-content").innerHTML = `
+        <table style="width:100%; border-collapse:collapse; font-family:sans-serif; font-size:14px; line-height:2;">
+          <tr><td><b>Locality</b></td><td>${locality}</td></tr>
+          <tr><td><b>City / State</b></td><td>${citystate}</td></tr>
+          <tr><td><b>Instagram</b></td><td>${
+            instagram
+              ? `<a href="https://instagram.com/${instagram.replace("@", "")}" target="_blank">${instagram}</a>`
+              : "—"
+          }</td></tr>
+          <tr><td><b>Members</b></td><td>${members}</td></tr>
+        </table>
+      `;
+
+      sidebar.open(panelID);
+    });
   }
 }
